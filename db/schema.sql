@@ -1,3 +1,4 @@
+-- ASCII only; regenerated to remove hidden unicode.
 -- Unanimy MVP schema
 -- Idempotent PostgreSQL DDL for Supabase
 
@@ -33,12 +34,12 @@ create table if not exists decisions (
   group_id uuid references groups(id),
   created_by_user_id uuid,
   decision_type text not null,
-  algorithm text not null,
+  algorithm text not null check (algorithm in ('collective', 'most_satisfied')),
   allow_veto boolean not null default true,
   status text not null default 'draft' check (status in ('draft', 'open', 'closed')),
   criteria_json jsonb not null default '{}'::jsonb,
   max_options int not null default 10,
-  sort_by text not null default 'rating',
+  sort_by text not null default 'rating' check (sort_by in ('rating', 'review_count', 'distance')),
   created_at timestamptz not null default now(),
   opened_at timestamptz,
   closed_at timestamptz
@@ -126,6 +127,9 @@ create table if not exists votes (
 
 create index if not exists votes_decision_item_id_idx
   on votes(decision_item_id);
+
+create index if not exists votes_participant_id_idx
+  on votes(participant_id);
 
 create table if not exists google_place_cache (
   place_id text not null,
