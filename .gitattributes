@@ -1,0 +1,3 @@
+# Force LF for SQL/MD to avoid CRLF churn and hidden-char issues
+*.sql text eol=lf
+*.md  text eol=lf
