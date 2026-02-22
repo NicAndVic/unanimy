@@ -21,7 +21,7 @@ const voteChoices = [
 ] as const;
 
 type DecisionResponse = {
-  decision: { algorithm: string; allow_veto: boolean };
+  decision: { algorithm: string; allow_veto: boolean; status: string; expires_at: string | null };
   options: Array<{ id: string; snapshot?: Record<string, unknown> }>;
   joinCode: string | null;
   myVotes: Record<string, number>;
@@ -39,6 +39,8 @@ export default function DecisionVotingPage() {
   const [completing, setCompleting] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [copyingCode, setCopyingCode] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [redirectingClosed, setRedirectingClosed] = useState(false);
   const [toastState, setToastState] = useState<{ open: boolean; title: string; description?: string; variant?: "default" | "destructive" }>({
     open: false,
     title: "",
@@ -80,6 +82,72 @@ export default function DecisionVotingPage() {
     void loadDecision();
   }, [params.decisionId]);
 
+
+
+  useEffect(() => {
+    const expiresAt = decision?.decision.expires_at;
+    if (typeof expiresAt !== "string") {
+      setSecondsRemaining(null);
+      return;
+    }
+
+    const expiresAtIso: string = expiresAt;
+
+    function tick() {
+      const remaining = Math.max(0, Math.floor((new Date(expiresAtIso).getTime() - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+    }
+
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [decision?.decision.expires_at]);
+
+  useEffect(() => {
+    if (decision?.decision.status === "closed") {
+      setRedirectingClosed(true);
+      const timeout = window.setTimeout(() => {
+        router.push(`/d/${params.decisionId}/result`);
+      }, 1200);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [decision?.decision.status, params.decisionId, router]);
+
+  useEffect(() => {
+    if (secondsRemaining !== 0 || !token) return;
+    const participantToken = token;
+
+    async function refreshDecision() {
+      try {
+        const response = await fetch(`/api/decisions/${params.decisionId}`, {
+          headers: { "x-participant-token": participantToken },
+        });
+        const data = (await response.json()) as DecisionResponse & { error?: string };
+        if (!response.ok) {
+          throw new Error(data.error ?? "Failed to refresh decision.");
+        }
+        setDecision(data);
+        if (data.decision.status === "closed") {
+          router.push(`/d/${params.decisionId}/result`);
+        }
+      } catch {
+        // ignore refresh errors at expiry edge
+      }
+    }
+
+    void refreshDecision();
+  }, [params.decisionId, router, secondsRemaining, token]);
+
+  const formattedCountdown = useMemo(() => {
+    if (secondsRemaining === null) return null;
+    if (secondsRemaining <= 0) return "Expired";
+
+    const hours = String(Math.floor(secondsRemaining / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((secondsRemaining % 3600) / 60)).padStart(2, "0");
+    const seconds = String(secondsRemaining % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  }, [secondsRemaining]);
+
   const options = useMemo(() => decision?.options ?? [], [decision?.options]);
   const activeOption = options[activeIndex];
   const votedCount = options.filter((option) => option.id in voteMap).length;
@@ -113,6 +181,16 @@ export default function DecisionVotingPage() {
       const data = (await response.json()) as { error?: string };
 
       if (!response.ok) {
+        if (response.status === 409) {
+          setToastState({
+            open: true,
+            title: "Voting closed",
+            description: "This decision is closed. Redirecting to results...",
+            variant: "destructive",
+          });
+          router.push(`/d/${params.decisionId}/result`);
+          return;
+        }
         throw new Error(data.error ?? "Failed to save vote.");
       }
 
@@ -211,6 +289,11 @@ export default function DecisionVotingPage() {
               <Badge variant="secondary">Algorithm: {decision.decision.algorithm}</Badge>
               <Badge variant="secondary">Allow veto: {decision.decision.allow_veto ? "Yes" : "No"}</Badge>
               <Badge>{decision.joinCode ? `Join code: ${decision.joinCode}` : "Join code expired"}</Badge>
+              {formattedCountdown ? (
+                <Badge variant={secondsRemaining === 0 ? "destructive" : "secondary"}>
+                  {secondsRemaining === 0 ? "Expired" : `Expires in ${formattedCountdown}`}
+                </Badge>
+              ) : null}
               {decision.joinCode ? (
                 <Button type="button" size="sm" variant="outline" onClick={() => void copyJoinCode()} disabled={copyingCode}>
                   {copyingCode ? "Copying..." : "Copy"}
@@ -221,6 +304,12 @@ export default function DecisionVotingPage() {
         </div>
 
         {loading ? <p className="text-muted-foreground">Loading options...</p> : null}
+        {decision?.decision.status === "closed" ? (
+          <Alert>
+            <AlertTitle>Voting is closed</AlertTitle>
+            <AlertDescription>{redirectingClosed ? "Redirecting to results..." : "Redirecting shortly..."}</AlertDescription>
+          </Alert>
+        ) : null}
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Something went wrong</AlertTitle>

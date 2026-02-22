@@ -22,6 +22,21 @@ type CreateResponse = {
   expiresAt: string;
 };
 
+type RecentAdminLink = {
+  decisionId: string;
+  adminUrl: string;
+  createdAt: string;
+};
+
+const RECENT_ADMIN_LINKS_KEY = "unanimy:admin:recent";
+
+function addRecentAdminLink(link: RecentAdminLink) {
+  const parsed = JSON.parse(localStorage.getItem(RECENT_ADMIN_LINKS_KEY) ?? "[]") as RecentAdminLink[];
+  const deduped = parsed.filter((entry) => entry.decisionId !== link.decisionId);
+  const next = [link, ...deduped].slice(0, 20);
+  localStorage.setItem(RECENT_ADMIN_LINKS_KEY, JSON.stringify(next));
+}
+
 export default function CreatePage() {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -89,6 +104,11 @@ export default function CreatePage() {
       setParticipantToken(data.decisionId, data.participantToken);
       localStorage.setItem(`unanimy:adminUrl:${data.decisionId}`, data.adminUrl);
       localStorage.setItem(`unanimy:orgkey:${data.decisionId}`, data.organizerKey);
+      addRecentAdminLink({
+        decisionId: data.decisionId,
+        adminUrl: data.adminUrl,
+        createdAt: new Date().toISOString(),
+      });
       setCreated(data);
       setToastMessage("Decision ready. Save your organizer admin URL.");
       setToastOpen(true);
