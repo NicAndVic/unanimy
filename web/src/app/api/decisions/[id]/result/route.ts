@@ -1,10 +1,12 @@
 import { jsonError, parseUuidParam, requireParticipant } from "@/lib/api";
+import { ensureDecisionNotExpired } from "@/lib/decision-service";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const decisionId = parseUuidParam(id, "decision id");
+    await ensureDecisionNotExpired(decisionId);
     await requireParticipant(decisionId, request);
 
     const { data: result, error: resultError } = await supabaseAdmin

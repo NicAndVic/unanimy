@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +17,14 @@ type CreateResponse = {
   decisionId: string;
   joinCode: string;
   participantToken: string;
+  organizerKey: string;
+  adminUrl: string;
+  expiresAt: string;
 };
 
 export default function CreatePage() {
-  const [latitude, setLatitude] = useState("37.7749");
-  const [longitude, setLongitude] = useState("-122.4194");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [radiusMeters, setRadiusMeters] = useState("2000");
   const [maxOptions, setMaxOptions] = useState("10");
   const [algorithm, setAlgorithm] = useState<"collective" | "most_satisfied">("collective");
@@ -29,7 +32,31 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Join code copied to clipboard.");
   const [created, setCreated] = useState<CreateResponse | null>(null);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator) || !("permissions" in navigator)) {
+      return;
+    }
+
+    void navigator.permissions
+      .query({ name: "geolocation" })
+      .then((status) => {
+        if (status.state !== "granted") {
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLatitude(position.coords.latitude.toFixed(6));
+            setLongitude(position.coords.longitude.toFixed(6));
+          },
+          () => {},
+          { timeout: 5000 },
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const canSubmit = useMemo(() => !loading && latitude && longitude, [latitude, loading, longitude]);
 
@@ -60,7 +87,10 @@ export default function CreatePage() {
       }
 
       setParticipantToken(data.decisionId, data.participantToken);
+      localStorage.setItem(`unanimy:adminUrl:${data.decisionId}`, data.adminUrl);
+      localStorage.setItem(`unanimy:orgkey:${data.decisionId}`, data.organizerKey);
       setCreated(data);
+      setToastMessage("Decision ready. Save your organizer admin URL.");
       setToastOpen(true);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Something went wrong.");
@@ -72,7 +102,35 @@ export default function CreatePage() {
   async function copyJoinCode() {
     if (!created) return;
     await navigator.clipboard.writeText(created.joinCode);
+    setToastMessage("Join code copied to clipboard.");
     setToastOpen(true);
+  }
+
+  async function copyOrganizerUrl() {
+    if (!created) return;
+    await navigator.clipboard.writeText(created.adminUrl);
+    setToastMessage("Organizer admin URL copied to clipboard.");
+    setToastOpen(true);
+  }
+
+  function useMyLocation() {
+    if (!("geolocation" in navigator)) {
+      setError("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude.toFixed(6));
+        setLongitude(position.coords.longitude.toFixed(6));
+        setToastMessage("Location updated from your device.");
+        setToastOpen(true);
+      },
+      (geoError) => {
+        setError(geoError.message || "Unable to get your location.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
   return (
@@ -99,6 +157,11 @@ export default function CreatePage() {
               <div className="space-y-2">
                 <Label htmlFor="longitude">Longitude</Label>
                 <Input id="longitude" type="number" step="any" value={longitude} onChange={(event) => setLongitude(event.target.value)} required />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Button type="button" variant="outline" onClick={useMyLocation}>
+                  Use my location
+                </Button>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="radiusMeters">Radius (meters)</Label>
@@ -149,6 +212,12 @@ export default function CreatePage() {
                   <Button asChild>
                     <Link href={`/d/${created.decisionId}`}>Open voting page</Link>
                   </Button>
+                  <Button asChild variant="outline">
+                    <Link href={created.adminUrl}>Open admin page</Link>
+                  </Button>
+                  <Button type="button" variant="outline" onClick={copyOrganizerUrl}>
+                    Copy admin link
+                  </Button>
                   <Button asChild variant="secondary">
                     <Link href={`/join?code=${created.joinCode}`}>Join on another device</Link>
                   </Button>
@@ -160,8 +229,8 @@ export default function CreatePage() {
       </Card>
 
       <SimpleToast
-        title={created ? "Decision ready" : "Copied join code"}
-        description={created ? "Share the code so others can join." : "Join code copied to clipboard."}
+        title={created ? "Decision ready" : "Update"}
+        description={toastMessage}
         open={toastOpen}
         onOpenChange={setToastOpen}
       />

@@ -2,6 +2,40 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { ApiError } from "@/lib/api";
 import { computeDecisionResult, type DecisionAlgorithm } from "@/lib/scoring";
 
+export async function ensureDecisionNotExpired(decisionId: string) {
+  const { data: decision, error } = await supabaseAdmin
+    .from("decisions")
+    .select("id, status, expires_at")
+    .eq("id", decisionId)
+    .maybeSingle();
+
+  if (error || !decision) {
+    throw new ApiError(404, "Decision not found.");
+  }
+
+  if (decision.status !== "open" || !decision.expires_at) {
+    return decision;
+  }
+
+  if (new Date(decision.expires_at).getTime() > Date.now()) {
+    return decision;
+  }
+
+  await computeAndCloseDecision(decisionId);
+
+  const { data: updatedDecision, error: updatedError } = await supabaseAdmin
+    .from("decisions")
+    .select("id, status, expires_at")
+    .eq("id", decisionId)
+    .maybeSingle();
+
+  if (updatedError || !updatedDecision) {
+    throw new ApiError(500, "Failed to load decision state after auto-close.");
+  }
+
+  return updatedDecision;
+}
+
 export async function computeAndCloseDecision(decisionId: string) {
   const { data: decision, error: decisionError } = await supabaseAdmin
     .from("decisions")

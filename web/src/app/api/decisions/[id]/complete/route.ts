@@ -1,11 +1,15 @@
 import { jsonError, parseUuidParam, requireParticipant } from "@/lib/api";
-import { computeAndCloseDecision } from "@/lib/decision-service";
+import { computeAndCloseDecision, ensureDecisionNotExpired } from "@/lib/decision-service";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const decisionId = parseUuidParam(id, "decision id");
+    const decisionState = await ensureDecisionNotExpired(decisionId);
+    if (decisionState.status !== "open") {
+      return jsonError(409, "Decision is closed.");
+    }
     const { participant } = await requireParticipant(decisionId, request);
 
     if (!participant.completed_at) {

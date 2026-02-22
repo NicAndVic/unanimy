@@ -1,18 +1,38 @@
-import { jsonError, parseUuidParam, requireParticipant } from "@/lib/api";
+import { getOrganizerKeyFromRequest, jsonError, organizerKeyMatches, parseUuidParam } from "@/lib/api";
 import { computeAndCloseDecision } from "@/lib/decision-service";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const decisionId = parseUuidParam(id, "decision id");
-    const { participant } = await requireParticipant(decisionId, request);
+    const organizerKey = getOrganizerKeyFromRequest(request);
 
-    if (participant.role !== "organizer") {
-      return jsonError(403, "Only the organizer can close this decision.");
+    if (!organizerKey) {
+      return jsonError(401, "Missing organizer key.");
     }
 
-    const result = await computeAndCloseDecision(decisionId);
-    return Response.json({ ok: true, result });
+    const { data: decision, error: decisionError } = await supabaseAdmin
+      .from("decisions")
+      .select("status, organizer_key_hash")
+      .eq("id", decisionId)
+      .maybeSingle();
+
+    if (decisionError || !decision) {
+      return jsonError(404, "Decision not found.");
+    }
+
+    if (!decision.organizer_key_hash || !organizerKeyMatches(organizerKey, decision.organizer_key_hash)) {
+      return jsonError(403, "Invalid organizer key.");
+    }
+
+    if (decision.status === "closed") {
+      return Response.json({ ok: true, alreadyClosed: true });
+    }
+
+    await computeAndCloseDecision(decisionId);
+
+    return Response.json({ ok: true, alreadyClosed: false });
   } catch (error) {
     if (error instanceof Error && "status" in error) {
       return jsonError((error as Error & { status: number }).status, error.message);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ type JoinResponse = {
   participantToken: string;
 };
 
-export default function JoinPage() {
+function JoinPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -94,5 +94,13 @@ export default function JoinPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto flex min-h-screen w-full max-w-lg items-center px-6 py-10">Loading...</main>}>
+      <JoinPageContent />
+    </Suspense>
   );
 }
