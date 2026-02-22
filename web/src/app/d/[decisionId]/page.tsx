@@ -35,6 +35,7 @@ export default function DecisionVotingPage() {
   const [error, setError] = useState<string | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [voteMap, setVoteMap] = useState<Record<string, number>>({});
+  const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
   const [completing, setCompleting] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [copyingCode, setCopyingCode] = useState(false);
@@ -62,7 +63,13 @@ export default function DecisionVotingPage() {
           throw new Error(data.error ?? "Failed to load decision.");
         }
         setDecision(data);
-        setVoteMap(data.myVotes ?? {});
+        const initialVotes = data.myVotes ?? {};
+        setVoteMap(initialVotes);
+        const initialSaved = Object.keys(initialVotes).reduce<Record<string, boolean>>((acc, optionId) => {
+          acc[optionId] = true;
+          return acc;
+        }, {});
+        setSavedMap(initialSaved);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Something went wrong.");
       } finally {
@@ -89,7 +96,9 @@ export default function DecisionVotingPage() {
     if (!token) return;
 
     const previousVote = voteMap[decisionItemId];
+    const previousSaved = savedMap[decisionItemId];
     setVoteMap((current) => ({ ...current, [decisionItemId]: vote }));
+    setSavedMap((current) => ({ ...current, [decisionItemId]: false }));
 
     try {
       const response = await fetch(`/api/decisions/${params.decisionId}/votes`, {
@@ -106,6 +115,8 @@ export default function DecisionVotingPage() {
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to save vote.");
       }
+
+      setSavedMap((current) => ({ ...current, [decisionItemId]: true }));
     } catch (voteError) {
       setVoteMap((current) => {
         const next = { ...current };
@@ -116,6 +127,7 @@ export default function DecisionVotingPage() {
         }
         return next;
       });
+      setSavedMap((current) => ({ ...current, [decisionItemId]: Boolean(previousSaved) }));
       setToastState({
         open: true,
         title: "Vote not saved",
@@ -249,6 +261,8 @@ export default function DecisionVotingPage() {
                   </Button>
                 ))}
               </div>
+
+              <p className="mt-2 text-sm text-muted-foreground">{savedMap[activeOption.id] ? "Saved" : "Pick a vote"}</p>
 
               <Separator className="my-4" />
 
