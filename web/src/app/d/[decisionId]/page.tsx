@@ -270,20 +270,20 @@ export default function DecisionVotingPage() {
                   <div className="w-16" />
                 )}
               </div>
+
+              {isLast ? (
+                <div className="mt-4 space-y-1">
+                  <Button onClick={() => void completeVoting()} disabled={completing || loading || !allVoted}>
+                    {completing ? "Completing..." : "Complete voting"}
+                  </Button>
+                  {!allVoted ? <p className="text-sm text-muted-foreground">Vote on all options to complete.</p> : null}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         ) : loading ? null : (
           <p className="text-muted-foreground">No options available yet.</p>
         )}
-
-        {isLast ? (
-          <div className="space-y-1">
-            <Button onClick={() => void completeVoting()} disabled={completing || loading || !allVoted}>
-              {completing ? "Completing..." : "Complete voting"}
-            </Button>
-            {!allVoted ? <p className="text-sm text-muted-foreground">Vote on all options to complete.</p> : null}
-          </div>
-        ) : null}
 
         <SimpleToast
           title={toastState.title}
