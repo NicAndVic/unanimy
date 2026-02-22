@@ -5,7 +5,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const decisionId = parseUuidParam(id, "decision id");
-    await requireParticipant(decisionId, request);
+    const { participant } = await requireParticipant(decisionId, request);
 
     const { data: decision, error: decisionError } = await supabaseAdmin
       .from("decisions")
@@ -27,7 +27,45 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return jsonError(500, "Failed to load decision options.");
     }
 
-    return Response.json({ decision, options: options ?? [] });
+    const { data: joinCodeRow, error: joinCodeError } = await supabaseAdmin
+      .from("decision_join_codes")
+      .select("code, expires_at")
+      .eq("decision_id", decisionId)
+      .maybeSingle();
+
+    if (joinCodeError) {
+      return jsonError(500, "Failed to load decision join code.");
+    }
+
+    const now = Date.now();
+    const joinCode =
+      joinCodeRow && new Date(joinCodeRow.expires_at).getTime() > now
+        ? joinCodeRow.code
+        : null;
+
+    const optionIds = (options ?? []).map((option) => option.id);
+    let myVotesRows: Array<{ decision_item_id: string; value: number }> = [];
+
+    if (optionIds.length > 0) {
+      const { data, error: myVotesError } = await supabaseAdmin
+        .from("votes")
+        .select("decision_item_id, value")
+        .eq("participant_id", participant.id)
+        .in("decision_item_id", optionIds);
+
+      if (myVotesError) {
+        return jsonError(500, "Failed to load participant votes.");
+      }
+
+      myVotesRows = data ?? [];
+    }
+
+    const myVotes = myVotesRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.decision_item_id] = row.value;
+      return acc;
+    }, {});
+
+    return Response.json({ decision, options: options ?? [], joinCode, myVotes });
   } catch (error) {
     if (error instanceof Error && "status" in error) {
       return jsonError((error as Error & { status: number }).status, error.message);
