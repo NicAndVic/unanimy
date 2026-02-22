@@ -119,8 +119,8 @@ export default function CreatePage() {
                   onChange={(event) => setAlgorithm(event.target.value as "collective" | "most_satisfied")}
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                 >
-                  <option value="collective">collective</option>
-                  <option value="most_satisfied">most_satisfied</option>
+                  <option value="collective">Collective satisfaction</option>
+                  <option value="most_satisfied">Most people satisfied</option>
                 </select>
               </div>
               <label className="flex items-end gap-2 rounded-md border p-3 text-sm">
