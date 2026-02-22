@@ -76,7 +76,8 @@ export default function DecisionVotingPage() {
   const options = useMemo(() => decision?.options ?? [], [decision?.options]);
   const activeOption = options[activeIndex];
   const votedCount = options.filter((option) => option.id in voteMap).length;
-  const hasVotedAllOptions = options.length > 0 && votedCount === options.length;
+  const isLast = activeIndex === options.length - 1;
+  const allVoted = options.length > 0 && options.every((option) => voteMap[option.id] !== undefined);
 
   useEffect(() => {
     if (activeIndex > Math.max(0, options.length - 1)) {
@@ -256,14 +257,18 @@ export default function DecisionVotingPage() {
                   Back
                 </Button>
                 <p className="text-sm text-muted-foreground">{votedCount} of {options.length} options voted</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setActiveIndex((current) => Math.min(options.length - 1, current + 1))}
-                  disabled={activeIndex >= options.length - 1}
-                >
-                  Next
-                </Button>
+                {!isLast ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setActiveIndex((current) => Math.min(options.length - 1, current + 1))}
+                    disabled={activeIndex >= options.length - 1}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <div className="w-16" />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -271,9 +276,14 @@ export default function DecisionVotingPage() {
           <p className="text-muted-foreground">No options available yet.</p>
         )}
 
-        <Button onClick={() => void completeVoting()} disabled={completing || loading || !hasVotedAllOptions}>
-          {completing ? "Completing..." : "Complete voting"}
-        </Button>
+        {isLast ? (
+          <div className="space-y-1">
+            <Button onClick={() => void completeVoting()} disabled={completing || loading || !allVoted}>
+              {completing ? "Completing..." : "Complete voting"}
+            </Button>
+            {!allVoted ? <p className="text-sm text-muted-foreground">Vote on all options to complete.</p> : null}
+          </div>
+        ) : null}
 
         <SimpleToast
           title={toastState.title}
