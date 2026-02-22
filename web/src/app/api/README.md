@@ -37,3 +37,19 @@ curl -X POST http://localhost:3000/api/decisions/<decision_id>/votes \
 curl -X POST http://localhost:3000/api/decisions/<decision_id>/close \
   -H 'x-participant-token: <organizer_token>'
 ```
+
+## Web UI flow (App Router)
+
+1. Open `/create`, fill in coordinates and preferences, then submit to create a decision.
+2. Save the generated token in local storage (`unanimy:pt:<decisionId>`) and share the join code.
+3. Participants visit `/join`, enter the code, and are redirected to `/d/<decisionId>`.
+4. Everyone votes on each option, then presses **Complete voting**.
+5. View the winner and decision summary on `/d/<decisionId>/result`.
+
+### Local UI test steps
+
+1. Start the app: `cd web && npm run dev`.
+2. Create a decision at `http://localhost:3000/create`.
+3. Join from another tab/device at `http://localhost:3000/join?code=<JOIN_CODE>`.
+4. Vote in both sessions and complete voting.
+5. Confirm the result page shows winner details and counts.
