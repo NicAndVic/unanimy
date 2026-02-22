@@ -31,10 +31,12 @@ export default function DecisionResultPage() {
       return;
     }
 
+    const participantToken = token;
+
     async function loadResult() {
       try {
         const response = await fetch(`/api/decisions/${params.decisionId}/result`, {
-          headers: { "x-participant-token": token },
+          headers: { "x-participant-token": participantToken },
         });
         const data = (await response.json()) as ResultResponse & { error?: string };
         if (!response.ok) {

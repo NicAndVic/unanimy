@@ -114,7 +114,7 @@ export default function CreatePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="algorithm">Algorithm</Label>
-                <Select id="algorithm" value={algorithm} onChange={(event) => setAlgorithm(event.target.value as "collective" | "most_satisfied") }>
+                <Select id="algorithm" value={algorithm} onChange={(event) => setAlgorithm(event.target.value as "collective" | "most_satisfied")}>
                   <option value="collective">collective</option>
                   <option value="most_satisfied">most_satisfied</option>
                 </Select>
