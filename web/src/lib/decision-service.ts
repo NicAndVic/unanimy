@@ -21,21 +21,19 @@ export async function ensureDecisionNotExpired(decisionId: string) {
     return decision;
   }
 
-  const closedAt = new Date().toISOString();
-  const { error: closeError } = await supabaseAdmin
-    .from("decisions")
-    .update({ status: "closed", closed_at: closedAt })
-    .eq("id", decisionId)
-    .eq("status", "open");
+  await computeAndCloseDecision(decisionId);
 
-  if (closeError) {
-    throw new ApiError(500, "Failed to auto-close expired decision.");
+  const { data: updatedDecision, error: updatedError } = await supabaseAdmin
+    .from("decisions")
+    .select("id, status, expires_at")
+    .eq("id", decisionId)
+    .maybeSingle();
+
+  if (updatedError || !updatedDecision) {
+    throw new ApiError(500, "Failed to load decision state after auto-close.");
   }
 
-  return {
-    ...decision,
-    status: "closed",
-  };
+  return updatedDecision;
 }
 
 export async function computeAndCloseDecision(decisionId: string) {

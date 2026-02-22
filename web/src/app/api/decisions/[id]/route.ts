@@ -59,7 +59,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return Response.json({
         decision: {
           id: decision.id,
+          decision_type: decision.decision_type,
           status: decision.status,
+          algorithm: decision.algorithm,
+          allow_veto: decision.allow_veto,
           opened_at: decision.opened_at,
           expires_at: decision.expires_at,
           closed_at: decision.closed_at,

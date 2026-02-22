@@ -17,13 +17,14 @@ type CreateResponse = {
   decisionId: string;
   joinCode: string;
   participantToken: string;
-  organizerUrl: string;
+  organizerKey: string;
+  adminUrl: string;
   expiresAt: string;
 };
 
 export default function CreatePage() {
-  const [latitude, setLatitude] = useState("37.7749");
-  const [longitude, setLongitude] = useState("-122.4194");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [radiusMeters, setRadiusMeters] = useState("2000");
   const [maxOptions, setMaxOptions] = useState("10");
   const [algorithm, setAlgorithm] = useState<"collective" | "most_satisfied">("collective");
@@ -86,7 +87,8 @@ export default function CreatePage() {
       }
 
       setParticipantToken(data.decisionId, data.participantToken);
-      localStorage.setItem(`unanimy:adminUrl:${data.decisionId}`, data.organizerUrl);
+      localStorage.setItem(`unanimy:adminUrl:${data.decisionId}`, data.adminUrl);
+      localStorage.setItem(`unanimy:orgkey:${data.decisionId}`, data.organizerKey);
       setCreated(data);
       setToastMessage("Decision ready. Save your organizer admin URL.");
       setToastOpen(true);
@@ -106,7 +108,7 @@ export default function CreatePage() {
 
   async function copyOrganizerUrl() {
     if (!created) return;
-    await navigator.clipboard.writeText(created.organizerUrl);
+    await navigator.clipboard.writeText(created.adminUrl);
     setToastMessage("Organizer admin URL copied to clipboard.");
     setToastOpen(true);
   }
@@ -211,7 +213,7 @@ export default function CreatePage() {
                     <Link href={`/d/${created.decisionId}`}>Open voting page</Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link href={created.organizerUrl}>Open admin page</Link>
+                    <Link href={created.adminUrl}>Open admin page</Link>
                   </Button>
                   <Button type="button" variant="outline" onClick={copyOrganizerUrl}>
                     Copy admin link

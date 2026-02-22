@@ -1,4 +1,5 @@
 import { getOrganizerKeyFromRequest, jsonError, organizerKeyMatches, parseUuidParam } from "@/lib/api";
+import { computeAndCloseDecision } from "@/lib/decision-service";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,15 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Response.json({ ok: true, alreadyClosed: true });
     }
 
-    const { error: closeError } = await supabaseAdmin
-      .from("decisions")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("id", decisionId)
-      .eq("status", "open");
-
-    if (closeError) {
-      return jsonError(500, "Failed to close decision.");
-    }
+    await computeAndCloseDecision(decisionId);
 
     return Response.json({ ok: true, alreadyClosed: false });
   } catch (error) {
