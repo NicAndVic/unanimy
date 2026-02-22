@@ -1,3 +1,4 @@
+import { getConfig } from "@/lib/config";
 import { hashOrganizerKey, makeJoinCode, makeOrganizerKey, makeParticipantToken, jsonError } from "@/lib/api";
 import { getPlaceDetailsWithCache, searchNearbyWithCache } from "@/lib/google-places";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -10,10 +11,13 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    const decisionDefaults = await getConfig<{ maxOptions?: number }>("decision_defaults");
+    const ttlConfig = await getConfig<Record<string, number>>("decision_ttl_seconds");
+
     const latitude = body?.location?.latitude;
     const longitude = body?.location?.longitude;
     const radiusMeters = body?.radiusMeters ?? 2500;
-    const maxOptions = body?.maxOptions ?? 8;
+    const maxOptions = body?.maxOptions ?? decisionDefaults?.maxOptions ?? 8;
 
     if (!asNumber(latitude) || !asNumber(longitude)) {
       return jsonError(400, "location.latitude and location.longitude are required numbers.");
@@ -27,11 +31,13 @@ export async function POST(request: Request) {
       return jsonError(400, "maxOptions must be an integer between 2 and 20.");
     }
 
+    const decisionType = "restaurants";
     const algorithm = body?.algorithm === "most_satisfied" ? "most_satisfied" : "collective";
     const allowVeto = body?.allowVeto !== false;
     const sortBy = ["rating", "review_count", "distance"].includes(body?.sortBy) ? body.sortBy : "rating";
     const openedAt = new Date();
-    const expiresAt = new Date(openedAt.getTime() + 2 * 60 * 60 * 1000);
+    const ttlSeconds = ttlConfig?.[decisionType] ?? ttlConfig?.default ?? 7200;
+    const expiresAt = new Date(openedAt.getTime() + ttlSeconds * 1000);
     const organizerKey = makeOrganizerKey();
 
     const nearby = await searchNearbyWithCache({
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
     const { data: decision, error: decisionError } = await supabaseAdmin
       .from("decisions")
       .insert({
-        decision_type: "restaurants",
+        decision_type: decisionType,
         algorithm,
         allow_veto: allowVeto,
         status: "open",
