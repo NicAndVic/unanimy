@@ -1,4 +1,5 @@
 import { makeParticipantToken, jsonError } from "@/lib/api";
+import { ensureDecisionNotExpired } from "@/lib/decision-service";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
@@ -22,6 +23,11 @@ export async function POST(request: Request) {
 
     if (new Date(joinCode.expires_at).getTime() < Date.now()) {
       return jsonError(410, "Join code has expired.");
+    }
+
+    const decisionState = await ensureDecisionNotExpired(joinCode.decision_id);
+    if (decisionState.status !== "open") {
+      return jsonError(409, "Decision is closed.");
     }
 
     const participantToken = makeParticipantToken();

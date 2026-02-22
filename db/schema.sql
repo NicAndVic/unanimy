@@ -42,8 +42,18 @@ create table if not exists decisions (
   sort_by text not null default 'rating' check (sort_by in ('rating', 'review_count', 'distance')),
   created_at timestamptz not null default now(),
   opened_at timestamptz,
+  expires_at timestamptz,
+  organizer_key_hash text,
   closed_at timestamptz
 );
+
+alter table public.decisions
+  add column if not exists expires_at timestamptz,
+  add column if not exists organizer_key_hash text;
+
+update public.decisions
+set expires_at = opened_at + interval '2 hours'
+where expires_at is null and opened_at is not null;
 
 create index if not exists decisions_group_created_idx
   on decisions(group_id, created_at);

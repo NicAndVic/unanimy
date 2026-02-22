@@ -1,4 +1,4 @@
-import { makeJoinCode, makeParticipantToken, jsonError } from "@/lib/api";
+import { hashKey, makeJoinCode, makeOrganizerKey, makeParticipantToken, jsonError } from "@/lib/api";
 import { getPlaceDetailsWithCache, searchNearbyWithCache } from "@/lib/google-places";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -30,6 +30,9 @@ export async function POST(request: Request) {
     const algorithm = body?.algorithm === "most_satisfied" ? "most_satisfied" : "collective";
     const allowVeto = body?.allowVeto !== false;
     const sortBy = ["rating", "review_count", "distance"].includes(body?.sortBy) ? body.sortBy : "rating";
+    const openedAt = new Date();
+    const expiresAt = new Date(openedAt.getTime() + 2 * 60 * 60 * 1000);
+    const organizerKey = makeOrganizerKey();
 
     const nearby = await searchNearbyWithCache({
       latitude,
@@ -61,7 +64,9 @@ export async function POST(request: Request) {
         algorithm,
         allow_veto: allowVeto,
         status: "open",
-        opened_at: new Date().toISOString(),
+        opened_at: openedAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        organizer_key_hash: hashKey(organizerKey),
         max_options: maxOptions,
         sort_by: sortBy,
         criteria_json: {
@@ -155,6 +160,8 @@ export async function POST(request: Request) {
         decisionId: decision.id,
         joinCode: code,
         participantToken,
+        organizerUrl: `/admin/d/${decision.id}?k=${organizerKey}`,
+        expiresAt: expiresAt.toISOString(),
         options: decisionItems ?? [],
       },
       { status: 201 },

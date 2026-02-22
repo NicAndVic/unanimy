@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export class ApiError extends Error {
   status: number;
@@ -56,4 +57,29 @@ export function makeJoinCode(length = 5) {
 
 export function makeParticipantToken() {
   return crypto.randomUUID().replace(/-/g, "");
+}
+
+export function makeOrganizerKey() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashKey(key: string) {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+export function organizerKeyFromRequest(request: Request) {
+  const url = new URL(request.url);
+  const queryKey = url.searchParams.get("k")?.trim();
+  const headerKey = request.headers.get("x-organizer-key")?.trim();
+  return headerKey || queryKey || null;
+}
+
+export function organizerKeyMatches(providedKey: string, storedHash: string) {
+  const hashedProvided = hashKey(providedKey);
+  const providedBuffer = Buffer.from(hashedProvided, "utf8");
+  const storedBuffer = Buffer.from(storedHash, "utf8");
+  if (providedBuffer.length !== storedBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(providedBuffer, storedBuffer);
 }
