@@ -43,16 +43,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         ? joinCodeRow.code
         : null;
 
-    const { data: myVotesRows, error: myVotesError } = await supabaseAdmin
-      .from("votes")
-      .select("decision_item_id, value")
-      .eq("participant_id", participant.id);
+    const optionIds = (options ?? []).map((option) => option.id);
+    let myVotesRows: Array<{ decision_item_id: string; value: number }> = [];
 
-    if (myVotesError) {
-      return jsonError(500, "Failed to load participant votes.");
+    if (optionIds.length > 0) {
+      const { data, error: myVotesError } = await supabaseAdmin
+        .from("votes")
+        .select("decision_item_id, value")
+        .eq("participant_id", participant.id)
+        .in("decision_item_id", optionIds);
+
+      if (myVotesError) {
+        return jsonError(500, "Failed to load participant votes.");
+      }
+
+      myVotesRows = data ?? [];
     }
 
-    const myVotes = (myVotesRows ?? []).reduce<Record<string, number>>((acc, row) => {
+    const myVotes = myVotesRows.reduce<Record<string, number>>((acc, row) => {
       acc[row.decision_item_id] = row.value;
       return acc;
     }, {});
