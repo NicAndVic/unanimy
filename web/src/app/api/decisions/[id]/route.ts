@@ -30,12 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const joinCode = joinCodeRow && new Date(joinCodeRow.expires_at).getTime() > Date.now() ? joinCodeRow.code : null;
 
-    const organizerKey = getOrganizerKeyFromRequest(request);
-    if (organizerKey) {
-      if (!decision.organizer_key_hash || !organizerKeyMatches(organizerKey, decision.organizer_key_hash)) {
-        return jsonError(403, "Invalid organizer key.");
-      }
-
+    const loadCounts = async () => {
       const { count: participantsCount } = await supabaseAdmin
         .from("participants")
         .select("id", { count: "exact", head: true })
@@ -47,6 +42,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         .eq("decision_id", decisionId)
         .not("completed_at", "is", null);
 
+      return {
+        participants: participantsCount ?? 0,
+        completed: completedCount ?? 0,
+      };
+    };
+
+    const organizerKey = getOrganizerKeyFromRequest(request);
+    if (organizerKey) {
+      if (!decision.organizer_key_hash || !organizerKeyMatches(organizerKey, decision.organizer_key_hash)) {
+        return jsonError(403, "Invalid organizer key.");
+      }
+
+      const counts = await loadCounts();
+
       return Response.json({
         decision: {
           id: decision.id,
@@ -56,10 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           closed_at: decision.closed_at,
         },
         joinCode,
-        counts: {
-          participants: participantsCount ?? 0,
-          completed: completedCount ?? 0,
-        },
+        counts,
       });
     }
 
@@ -97,6 +103,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return acc;
     }, {});
 
+    const counts = await loadCounts();
+
     return Response.json({
       decision: {
         id: decision.id,
@@ -111,6 +119,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       options: options ?? [],
       joinCode,
       myVotes,
+      counts,
     });
   } catch (error) {
     if (error instanceof Error && "status" in error) {

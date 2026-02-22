@@ -83,6 +83,3 @@ export function organizerKeyMatches(providedKey: string, storedHash: string) {
   }
   return timingSafeEqual(providedBuffer, storedBuffer);
 }
-
-export const hashKey = hashOrganizerKey;
-export const organizerKeyFromRequest = getOrganizerKeyFromRequest;
