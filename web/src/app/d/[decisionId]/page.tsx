@@ -157,7 +157,7 @@ export default function DecisionVotingPage() {
                   <CardTitle className="text-lg">{displayName}</CardTitle>
                   <CardDescription>
                     {typeof rating === "number" ? `Rating ${rating}` : "No rating available"}
-                    {address ? ` • ${address}` : ""}
+                    {address ? ` - ${address}` : ""}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -169,7 +169,7 @@ export default function DecisionVotingPage() {
                     ))}
                   </div>
                   <Separator className="my-3" />
-                  <p className="text-sm text-muted-foreground">{savedMap[option.id] ? "Saved ✓" : "Pick a vote"}</p>
+                  <p className="text-sm text-muted-foreground">{savedMap[option.id] ? "Saved" : "Pick a vote"}</p>
                 </CardContent>
               </Card>
             );

@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getParticipantToken } from "@/lib/participantToken";
 
-type ResultResponse = {
+interface ResultResponse {
   winner: Record<string, unknown> | null;
   counts: { participants: number; completed: number };
   algorithm: string | null;
-};
+}
 
 export default function DecisionResultPage() {
   const params = useParams<{ decisionId: string }>();
@@ -34,7 +34,7 @@ export default function DecisionResultPage() {
     async function loadResult() {
       try {
         const response = await fetch(`/api/decisions/${params.decisionId}/result`, {
-          headers: { "x-participant-token": token as string },
+          headers: { "x-participant-token": token },
         });
         const data = (await response.json()) as ResultResponse & { error?: string };
         if (!response.ok) {

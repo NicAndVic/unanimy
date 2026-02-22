@@ -42,13 +42,13 @@ export default function JoinPage() {
         body: JSON.stringify({ code: code.toUpperCase() }),
       });
 
-      const data = (await response.json()) as JoinResponse & { error?: string };
-      if (!response.ok) {
-        if (response.status === 404 || response.status === 410) {
-          throw new Error("That code is invalid or expired. Ask the organizer for a fresh code.");
+        const data = (await response.json()) as JoinResponse & { error?: string };
+        if (!response.ok) {
+          if (response.status === 404 || response.status === 410) {
+          throw new Error(`That code is invalid or expired.\nAsk the organizer for a fresh code.`);
+          }
+          throw new Error(data.error ?? "Could not join decision.");
         }
-        throw new Error(data.error ?? "Could not join decision.");
-      }
 
       setParticipantToken(data.decisionId, data.participantToken);
       router.push(`/d/${data.decisionId}`);
