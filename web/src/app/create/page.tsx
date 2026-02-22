@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { SimpleToast } from "@/components/ui/simple-toast";
 import { setParticipantToken } from "@/lib/participantToken";
@@ -114,10 +113,15 @@ export default function CreatePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="algorithm">Algorithm</Label>
-                <Select id="algorithm" value={algorithm} onChange={(event) => setAlgorithm(event.target.value as "collective" | "most_satisfied")}>
+                <select
+                  id="algorithm"
+                  value={algorithm}
+                  onChange={(event) => setAlgorithm(event.target.value as "collective" | "most_satisfied")}
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                >
                   <option value="collective">collective</option>
                   <option value="most_satisfied">most_satisfied</option>
-                </Select>
+                </select>
               </div>
               <label className="flex items-end gap-2 rounded-md border p-3 text-sm">
                 <input checked={allowVeto} onChange={(event) => setAllowVeto(event.target.checked)} type="checkbox" />
