@@ -86,7 +86,7 @@ export default function CreatePage() {
       }
 
       setParticipantToken(data.decisionId, data.participantToken);
-      localStorage.setItem(`unanimy:admin:${data.decisionId}`, data.organizerUrl);
+      localStorage.setItem(`unanimy:adminUrl:${data.decisionId}`, data.organizerUrl);
       setCreated(data);
       setToastMessage("Decision ready. Save your organizer admin URL.");
       setToastOpen(true);
@@ -101,6 +101,13 @@ export default function CreatePage() {
     if (!created) return;
     await navigator.clipboard.writeText(created.joinCode);
     setToastMessage("Join code copied to clipboard.");
+    setToastOpen(true);
+  }
+
+  async function copyOrganizerUrl() {
+    if (!created) return;
+    await navigator.clipboard.writeText(created.organizerUrl);
+    setToastMessage("Organizer admin URL copied to clipboard.");
     setToastOpen(true);
   }
 
@@ -205,6 +212,9 @@ export default function CreatePage() {
                   </Button>
                   <Button asChild variant="outline">
                     <Link href={created.organizerUrl}>Open admin page</Link>
+                  </Button>
+                  <Button type="button" variant="outline" onClick={copyOrganizerUrl}>
+                    Copy admin link
                   </Button>
                   <Button asChild variant="secondary">
                     <Link href={`/join?code=${created.joinCode}`}>Join on another device</Link>

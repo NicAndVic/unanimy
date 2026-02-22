@@ -1,11 +1,12 @@
-import { jsonError, organizerKeyFromRequest, organizerKeyMatches, parseUuidParam } from "@/lib/api";
+import { getOrganizerKeyFromRequest, jsonError, organizerKeyMatches, parseUuidParam } from "@/lib/api";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const decisionId = parseUuidParam(id, "decision id");
-    const organizerKey = organizerKeyFromRequest(request);
+    const organizerKey = getOrganizerKeyFromRequest(request);
+
     if (!organizerKey) {
       return jsonError(401, "Missing organizer key.");
     }

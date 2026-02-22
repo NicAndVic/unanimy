@@ -63,11 +63,11 @@ export function makeOrganizerKey() {
   return randomBytes(32).toString("base64url");
 }
 
-export function hashKey(key: string) {
+export function hashOrganizerKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export function organizerKeyFromRequest(request: Request) {
+export function getOrganizerKeyFromRequest(request: Request) {
   const url = new URL(request.url);
   const queryKey = url.searchParams.get("k")?.trim();
   const headerKey = request.headers.get("x-organizer-key")?.trim();
@@ -75,7 +75,7 @@ export function organizerKeyFromRequest(request: Request) {
 }
 
 export function organizerKeyMatches(providedKey: string, storedHash: string) {
-  const hashedProvided = hashKey(providedKey);
+  const hashedProvided = hashOrganizerKey(providedKey);
   const providedBuffer = Buffer.from(hashedProvided, "utf8");
   const storedBuffer = Buffer.from(storedHash, "utf8");
   if (providedBuffer.length !== storedBuffer.length) {
@@ -83,3 +83,6 @@ export function organizerKeyMatches(providedKey: string, storedHash: string) {
   }
   return timingSafeEqual(providedBuffer, storedBuffer);
 }
+
+export const hashKey = hashOrganizerKey;
+export const organizerKeyFromRequest = getOrganizerKeyFromRequest;

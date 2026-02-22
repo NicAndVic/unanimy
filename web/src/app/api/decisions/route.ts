@@ -1,4 +1,4 @@
-import { hashKey, makeJoinCode, makeOrganizerKey, makeParticipantToken, jsonError } from "@/lib/api";
+import { hashOrganizerKey, makeJoinCode, makeOrganizerKey, makeParticipantToken, jsonError } from "@/lib/api";
 import { getPlaceDetailsWithCache, searchNearbyWithCache } from "@/lib/google-places";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         status: "open",
         opened_at: openedAt.toISOString(),
         expires_at: expiresAt.toISOString(),
-        organizer_key_hash: hashKey(organizerKey),
+        organizer_key_hash: hashOrganizerKey(organizerKey),
         max_options: maxOptions,
         sort_by: sortBy,
         criteria_json: {

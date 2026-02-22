@@ -127,7 +127,7 @@ export default function DecisionAdminPage() {
                 Participants: {data.counts.participants} (completed {data.counts.completed})
               </p>
               <Button type="button" onClick={() => void closeDecisionNow()} disabled={closing || isClosed}>
-                {isClosed ? "Closed" : closing ? "Closing..." : "Close decision now"}
+                {isClosed ? "Already closed" : closing ? "Closing..." : "Close decision now"}
               </Button>
             </div>
           ) : null}

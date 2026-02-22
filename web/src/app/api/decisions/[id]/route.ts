@@ -1,4 +1,4 @@
-import { jsonError, organizerKeyFromRequest, organizerKeyMatches, parseUuidParam, requireParticipant } from "@/lib/api";
+import { getOrganizerKeyFromRequest, jsonError, organizerKeyMatches, parseUuidParam, requireParticipant } from "@/lib/api";
 import { ensureDecisionNotExpired } from "@/lib/decision-service";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -8,10 +8,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const decisionId = parseUuidParam(id, "decision id");
     await ensureDecisionNotExpired(decisionId);
 
-    const organizerKey = organizerKeyFromRequest(request);
-    const isAdminRequest = Boolean(organizerKey);
-    const participant = isAdminRequest ? null : (await requireParticipant(decisionId, request)).participant;
-
     const { data: decision, error: decisionError } = await supabaseAdmin
       .from("decisions")
       .select("id, decision_type, status, algorithm, allow_veto, opened_at, expires_at, closed_at, organizer_key_hash")
@@ -20,20 +16,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     if (decisionError || !decision) {
       return jsonError(404, "Decision not found.");
-    }
-
-    if (isAdminRequest && (!decision.organizer_key_hash || !organizerKeyMatches(organizerKey as string, decision.organizer_key_hash))) {
-      return jsonError(403, "Invalid organizer key.");
-    }
-
-    const { data: options, error: optionsError } = await supabaseAdmin
-      .from("decision_items")
-      .select("id, display_order, snapshot")
-      .eq("decision_id", decisionId)
-      .order("display_order", { ascending: true });
-
-    if (optionsError) {
-      return jsonError(500, "Failed to load decision options.");
     }
 
     const { data: joinCodeRow, error: joinCodeError } = await supabaseAdmin
@@ -46,16 +28,57 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return jsonError(500, "Failed to load decision join code.");
     }
 
-    const now = Date.now();
-    const joinCode =
-      joinCodeRow && new Date(joinCodeRow.expires_at).getTime() > now
-        ? joinCodeRow.code
-        : null;
+    const joinCode = joinCodeRow && new Date(joinCodeRow.expires_at).getTime() > Date.now() ? joinCodeRow.code : null;
+
+    const organizerKey = getOrganizerKeyFromRequest(request);
+    if (organizerKey) {
+      if (!decision.organizer_key_hash || !organizerKeyMatches(organizerKey, decision.organizer_key_hash)) {
+        return jsonError(403, "Invalid organizer key.");
+      }
+
+      const { count: participantsCount } = await supabaseAdmin
+        .from("participants")
+        .select("id", { count: "exact", head: true })
+        .eq("decision_id", decisionId);
+
+      const { count: completedCount } = await supabaseAdmin
+        .from("participants")
+        .select("id", { count: "exact", head: true })
+        .eq("decision_id", decisionId)
+        .not("completed_at", "is", null);
+
+      return Response.json({
+        decision: {
+          id: decision.id,
+          status: decision.status,
+          opened_at: decision.opened_at,
+          expires_at: decision.expires_at,
+          closed_at: decision.closed_at,
+        },
+        joinCode,
+        counts: {
+          participants: participantsCount ?? 0,
+          completed: completedCount ?? 0,
+        },
+      });
+    }
+
+    const { participant } = await requireParticipant(decisionId, request);
+
+    const { data: options, error: optionsError } = await supabaseAdmin
+      .from("decision_items")
+      .select("id, display_order, snapshot")
+      .eq("decision_id", decisionId)
+      .order("display_order", { ascending: true });
+
+    if (optionsError) {
+      return jsonError(500, "Failed to load decision options.");
+    }
 
     const optionIds = (options ?? []).map((option) => option.id);
     let myVotesRows: Array<{ decision_item_id: string; value: number }> = [];
 
-    if (participant && optionIds.length > 0) {
+    if (optionIds.length > 0) {
       const { data, error: myVotesError } = await supabaseAdmin
         .from("votes")
         .select("decision_item_id, value")
@@ -74,37 +97,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return acc;
     }, {});
 
-    const { count: participantsCount } = await supabaseAdmin
-      .from("participants")
-      .select("id", { count: "exact", head: true })
-      .eq("decision_id", decisionId);
-
-    const { count: completedCount } = await supabaseAdmin
-      .from("participants")
-      .select("id", { count: "exact", head: true })
-      .eq("decision_id", decisionId)
-      .not("completed_at", "is", null);
-
-    const decisionPayload = {
-      id: decision.id,
-      decision_type: decision.decision_type,
-      status: decision.status,
-      algorithm: decision.algorithm,
-      allow_veto: decision.allow_veto,
-      opened_at: decision.opened_at,
-      expires_at: decision.expires_at,
-      closed_at: decision.closed_at,
-    };
-
     return Response.json({
-      decision: decisionPayload,
+      decision: {
+        id: decision.id,
+        decision_type: decision.decision_type,
+        status: decision.status,
+        algorithm: decision.algorithm,
+        allow_veto: decision.allow_veto,
+        opened_at: decision.opened_at,
+        expires_at: decision.expires_at,
+        closed_at: decision.closed_at,
+      },
       options: options ?? [],
       joinCode,
       myVotes,
-      counts: {
-        participants: participantsCount ?? 0,
-        completed: completedCount ?? 0,
-      },
     });
   } catch (error) {
     if (error instanceof Error && "status" in error) {
