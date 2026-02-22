@@ -61,6 +61,9 @@ create index if not exists decisions_group_created_idx
 create index if not exists decisions_status_idx
   on decisions(status);
 
+create index if not exists decisions_expires_at_idx
+  on decisions(expires_at);
+
 create table if not exists decision_join_codes (
   decision_id uuid primary key references decisions(id) on delete cascade,
   code char(5) not null unique,
